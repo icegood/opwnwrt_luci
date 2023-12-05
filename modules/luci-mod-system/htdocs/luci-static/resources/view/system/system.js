@@ -159,9 +159,9 @@ return view.extend({
 		 * Logging
 		 */
 
-		o = s.taboption('logging', form.Value, 'log_size', _('System log buffer size'), "kiB");
+		o = s.taboption('logging', form.Value, 'log_buffer_size', _('System log buffer size'), "kiB");
 		o.optional    = true;
-		o.placeholder = 128;
+		o.placeholder = 64
 		o.datatype    = 'uinteger';
 
 		o = s.taboption('logging', form.Value, 'log_ip', _('External system log server'));
@@ -182,21 +182,19 @@ return view.extend({
 		o.optional    = true;
 		o.placeholder = '/tmp/system.log';
 
-		o = s.taboption('logging', form.ListValue, 'conloglevel', _('Log output level'), _('Only affects dmesg kernel log'));
-		o.value(8, _('Debug'));
-		o.value(7, _('Info'));
-		o.value(6, _('Notice'));
-		o.value(5, _('Warning'));
-		o.value(4, _('Error'));
-		o.value(3, _('Critical'));
-		o.value(2, _('Alert'));
-		o.value(1, _('Emergency'));
+		o = s.taboption('logging', form.ListValue, 'log_priority', _('Log output priority'));
+		o.value(0, _('Emergency'));
+		o.value(1, _('Alert'));
+		o.value(2, _('Critical'));
+		o.value(3, _('Error'));
+		o.value(4, _('Warning'));
+		o.value(5, _('Notice'));
+		o.value(6, _('Info'));
+-		o.value(7, _('Debug'));
 
-		o = s.taboption('logging', form.ListValue, 'cronloglevel', _('Cron Log Level'));
-		o.default = 7;
-		o.value(7, _('Normal'));
-		o.value(9, _('Disabled'));
-		o.value(5, _('Debug'));
+		o = s.taboption('logging', form.Value, 'log_max_file_size', _('Log file size.'), "kiB. Rotated if overflow. Never rotated if 0");
+		o.optional    = true
+		o.placeholder = 0
 
 		/*
 		 * Zram Properties

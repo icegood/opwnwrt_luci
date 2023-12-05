@@ -709,8 +709,14 @@ return view.extend({
 								uielem.setPlaceholder(get_netmask(s, false));
 							return form.Value.prototype.validate.apply(this, [ section_id, value ]);
 						};
-
-						ss.taboption('advanced', form.DynamicList, 'dhcp_option', _('DHCP-Options'), _('Define additional DHCP options,  for example "<code>6,192.168.2.1,192.168.2.2</code>" which advertises different DNS servers to clients.'));
+						
+						// not handled in odhcp, and whole page is not for dnsnasq anyway, so why bother?
+						// ss.taboption('advanced', form.DynamicList, 'dhcp_option', _('DHCP-Options'), _('Define additional DHCP options,  for example "<code>6,192.168.2.1,192.168.2.2</code>" which advertises different DNS servers to clients.'));
+						
+						so = ss.taboption('advanced', form.DynamicList, 'dnsv4', _('Announced IPv4 DNS servers'),
+							_('Specifies a fixed list of IPv4 DNS server addresses to announce via DHCPv4. If left unspecified, the device will announce itself as IPv4 DNS server unless the <em>Local IPv4 DNS server</em> option is disabled.'));
+						so.optional = true;
+						so.datatype = 'ip4addr("nomask")'; /* restrict to IPv4 only here. This page is not for dnsmasq anyway */
 					}
 
 
@@ -972,7 +978,7 @@ return view.extend({
 
 					so = ss.taboption('ipv6', form.DynamicList, 'dns', _('Announced IPv6 DNS servers'),
 						_('Specifies a fixed list of IPv6 DNS server addresses to announce via DHCPv6. If left unspecified, the device will announce itself as IPv6 DNS server unless the <em>Local IPv6 DNS server</em> option is disabled.'));
-					so.datatype = 'ip6addr("nomask")'; /* restrict to IPv6 only for now since dnsmasq (DHCPv4) does not honour this option */
+					so.datatype = 'ip6addr("nomask")'; /* restrict to IPv6 only here. This page is not for dnsmasq anyway */
 					so.depends('ra', 'server');
 					so.depends({ ra: 'hybrid', master: '0' });
 					so.depends('dhcpv6', 'server');
