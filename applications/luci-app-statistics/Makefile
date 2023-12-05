@@ -21,6 +21,7 @@ LUCI_DEPENDS:= \
 	+collectd-mod-load \
 	+collectd-mod-network
 
+LUCI_URL=$(ICE_GIT)/luci
 PKG_MAINTAINER:=Jo-Philipp Wich <jo@mein.io>
 
 define Package/luci-app-statistics/conffiles

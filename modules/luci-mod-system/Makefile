@@ -8,6 +8,7 @@ include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=LuCI Administration - Global System Settings
 LUCI_DEPENDS:=+luci-base
+LUCI_URL=$(ICE_GIT)/luci
 
 PKG_LICENSE:=Apache-2.0
 

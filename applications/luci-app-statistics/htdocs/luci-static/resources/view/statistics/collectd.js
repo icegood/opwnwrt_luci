@@ -35,24 +35,32 @@ return view.extend({
 		});
 	},
 
-	render(plugins) {
-		let m, s, o, enabled;
+	addGeneralTab(m) {
+		var s = m.section(form.NamedSection, 'main','general', _('General luci statistics settings'));
 
-		for (let plugin of plugins)
-			plugins[plugin.name] = plugin;
+		var o = s.option(form.Value, 'config_file', _('Configuration file'), _('Must be consistent with setrting from collectd'));
+		o.default = '/var/etc/collectd.conf';
+		o.rmempty = false;
+		//o.optional = true;
+	},
 
-		m = new form.Map('luci_statistics', _('Collectd Settings'));
-		m.tabbed = true;
+	// for now collectd is the only backend for luci statistics. In future, say, when telegraf 
+	// might be integrated, we add this tab conditionally:
+	addCollectdTab(m) {
+		var s = m.section(form.NamedSection, 'collectd', 'statistics', _('Collectd Settings'));
 
-		s = m.section(form.NamedSection, 'collectd', 'statistics', _('Collectd Settings'));
-
-		o = s.option(form.Value, 'Hostname', _('Hostname'));
+		var o = s.option(form.Value, 'Hostname', _('Hostname'));
 		o.load = function() {
 			return fs.trimmed('/proc/sys/kernel/hostname').then(L.bind(function(name) {
 				this.placeholder = name;
 				return uci.get('luci_statistics', 'collectd', 'Hostname');
 			}, this));
 		};
+
+		o = s.option(form.Flag, 'FQDNLookup', _('Try to look up fully qualified hostname'));
+		o.default = o.disabled;
+		o.optional = true;
+		o.depends('Hostname', '');
 
 		o = s.option(form.Value, 'BaseDir', _('Base Directory'));
 		o.default = '/var/run/collectd';
@@ -69,21 +77,31 @@ return view.extend({
 		o = s.option(form.Value, 'TypesDB', _('Datasets definition file'));
 		o.default = '/etc/collectd/types.db';
 
-		o = s.option(form.Value, 'Interval', _('Data collection interval'), _('Seconds'));
+		o = s.option(form.Value, 'Interval', _('Data collection interval'), _('Seconds if number. Accepts suffixes y/mon/w/d/h/min/m/s.'));
 		o.default = '60';
 
 		o = s.option(form.Value, 'ReadThreads', _('Number of threads for data collection'));
 		o.default = '5';
+	},
 
-		o = s.option(form.Flag, 'FQDNLookup', _('Try to look up fully qualified hostname'));
-		o.default = o.disabled;
-		o.optional = true;
-		o.depends('Hostname', '');
+	render(plugins) {
+		let m, s, o, enabled;
+
+		for (let i = 0; i < plugins.length; i++)
+			plugins[plugins[i].name] = plugins[i];
+
+		m = new form.Map('luci_statistics', _('Luci statistics settings'));
+		m.tabbed = true;
+		// omit for a while. don't know why 'config_file' not shown in this tab
+		//this.addGeneralTab(m);
+		this.addCollectdTab(m);
 
 		let groupNames = [
 			'general', _('General plugins'),
+			'disks', _('Disk plugins'),
 			'network', _('Network plugins'),
-			'output', _('Output plugins')
+			'output', _('Output plugins'),
+			'log', _('Log plugins')
 		];
 
 		for (let i = 0; i < groupNames.length; i += 2) {
@@ -121,9 +139,16 @@ return view.extend({
 
 				return widget;
 			};
-
+			// plugin interval:
+			if ((groupNames[i] != 'output') && (groupNames[i] != 'log')) {
+				// meaningless for output plugins
+				o = s.option(form.DummyValue, 'Interval', _('Plugin interval'));
+				o.modalonly = false;
+				o.default = uci.get("luci_statistics", "collectd", "Interval");
+			}
+			// plugin status summary:
 			o = s.option(form.DummyValue, '_dummy', _('Status'));
-			o.width = '50%';
+			o.width = '40%';
 			o.modalonly = false;
 			o.textvalue = function(section_id) {
 				const name = section_id.replace(/^collectd_/, '');
@@ -133,7 +158,7 @@ return view.extend({
 				if (section.enable != '1')
 					return E('em', {}, [_('Plugin is disabled')]);
 
-				const  summary = plugin ? plugin.form.configSummary(section) : null;
+				const summary = plugin ? plugin.form?.configSummary(section) : null;
 				return summary || E('em', _('none'));
 			};
 
@@ -171,7 +196,7 @@ return view.extend({
 
 				const trEl = this.super('renderRowActions', [ section_id, _('Configure…') ]);
 
-				if (!plugin || !plugin.form.addFormOptions)
+				if (!plugin || !plugin.form?.addFormOptions)
 					dom.content(trEl, null);
 
 				return trEl;

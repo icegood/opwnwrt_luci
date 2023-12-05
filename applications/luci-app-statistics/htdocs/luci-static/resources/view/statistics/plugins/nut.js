@@ -1,13 +1,14 @@
 'use strict';
 'require baseclass';
 'require form';
+'require statistics.pluginUtil as pluginUtil';
 
 return baseclass.extend({
 	title: _('UPS Plugin Configuration'),
 	description: _('The NUT plugin reads information about Uninterruptible Power Supplies.'),
 
 	addFormOptions(s) {
-		s.option(form.Flag, 'enable', _('Enable this plugin'));
+		pluginUtil.addCommonOptions(s);
 
 		s.option(form.Value, 'UPS', _('UPS'), _('UPS name in NUT ups@host format'));
 	},

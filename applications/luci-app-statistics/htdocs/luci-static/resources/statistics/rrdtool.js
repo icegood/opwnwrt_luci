@@ -287,19 +287,18 @@ return baseclass.extend({
 		return (graphdefs[pluginName] != null);
 	},
 
+	// unlike rrdargs remains synchronous
 	hasInstanceDetails(hostInstance, pluginName, pluginInstance) {
 		const def = graphdefs[pluginName];
 
-		if (!def || typeof(def.rrdargs) != 'function')
+		if (!def || !def.hasInstanceDetails)
 			return false;
 
-		const optlist = this._forcelol(def.rrdargs(this, hostInstance, pluginName, pluginInstance, null, false));
+		if (typeof(def.hasInstanceDetails) == 'function') {
+			return def.hasInstanceDetails(pluginInstance);
+		}
 
-		for (let opt of optlist)
-			if (opt.detail)
-				return true;
-
-		return false;
+		return def.hasInstanceDetails;
 	},
 
 	_mkpath(host, plugin, plugin_instance, dtype, data_instance) {
@@ -323,8 +322,9 @@ return baseclass.extend({
 		).replace(/[\\:]/g, '\\$&');
 	},
 
-	_forcelol(list) {
-		return L.isObject(list[0]) ? list : [ list ];
+	_forcelol: async function(list) {
+		const resolved = await list; 
+		return Array.isArray(resolved) ? resolved : [resolved];
 	},
 
 	_rrdtool(def, rrd, timespan, width, height, cache) {
@@ -348,16 +348,15 @@ return baseclass.extend({
 		if (L.isObject(cache)) {
 			const key = sfh(cmdline.join('\0'));
 
-			if (!cache.hasOwnProperty(key))
+			if (!cache.hasOwnProperty(key)) {
 				cache[key] = fs.exec_direct('/usr/bin/rrdtool', cmdline, 'blob', true);
-
+			}
 			return cache[key];
 		}
-
 		return fs.exec_direct('/usr/bin/rrdtool', cmdline, 'blob', true);
 	},
 
-	_generic(opts, host, plugin, plugin_instance, dtype, index) {
+	_generic(opts, host, plugin, plugin_instance) {
 		const defs = [];
 		const gopts = this.opts;
 		let _args = [];
@@ -369,13 +368,15 @@ return baseclass.extend({
 
 		/* use the plugin+instance+type as seed for the prng to ensure the
 		   same pseudo-random color sequence for each render */
-		random.seed(sfh([plugin, plugin_instance || '', dtype || ''].join('.')));
+		random.seed(sfh([plugin, plugin_instance || '', ''].join('.')));
 
 		function __def(source) {
 			const inst = source.sname;
 			const rrd  = source.rrd;
 			const ds   = source.ds || 'value';
 
+			// make sure %s_avg_raw/%s_min_raw will take not more than 29 symbols
+			// same for key of CDEF but it is guaranteed to be less than DEF
 			_args.push(
 				'DEF:%s_avg_raw=%s:%s:AVERAGE'.format(inst, rrd, ds),
 				'CDEF:%s_avg=%s_avg_raw,%s'.format(inst, inst, source.transform_rpn)
@@ -450,8 +451,8 @@ return baseclass.extend({
 			/* calculate total amount of data if requested */
 			if (source.total)
 				_args.push(
-					'CDEF:%s_avg_sample=%s_avg,UN,0,%s_avg,IF,sample_len,*'.format(source.sname, source.sname, source.sname),
-					'CDEF:%s_avg_sum=PREV,UN,0,PREV,IF,%s_avg_sample,+'.format(source.sname, source.sname, source.sname)
+					'CDEF:%s_avg_smp=%s_avg,UN,0,%s_avg,IF,sample_len,*'.format(source.sname, source.sname, source.sname),
+					'CDEF:%s_avg_sum=PREV,UN,0,PREV,IF,%s_avg_smp,+'.format(source.sname, source.sname, source.sname)
 				);
 		}
 
@@ -510,21 +511,21 @@ return baseclass.extend({
 
 			/* don't include MIN if rrasingle is enabled */
 			if (!gopts.rrasingle)
-				_args.push('GPRINT:%s_min:MIN:\tMin\\: %s'.format(source.sname, numfmt));
+				_args.push('GPRINT:%s_min:MIN:Min\\: %s'.format(source.sname, numfmt));
 
 			/* don't include AVERAGE if noavg option is set */
 			if (!source.noavg)
-				_args.push('GPRINT:%s_avg:AVERAGE:\tAvg\\: %s'.format(source.sname, numfmt));
+				_args.push('GPRINT:%s_avg:AVERAGE:Avg\\: %s'.format(source.sname, numfmt));
 
 			/* don't include MAX if rrasingle is enabled */
 			if (!gopts.rrasingle)
-				_args.push('GPRINT:%s_max:MAX:\tMax\\: %s'.format(source.sname, numfmt));
+				_args.push('GPRINT:%s_max:MAX:Max\\: %s'.format(source.sname, numfmt));
 
 			/* include total count if requested else include LAST */
 			if (source.total)
 				_args.push('GPRINT:%s_avg_sum:LAST:(ca. %s Total)\\l'.format(source.sname, totfmt));
 			else
-				_args.push('GPRINT:%s_avg:LAST:\tLast\\: %s\\l'.format(source.sname, numfmt));
+				_args.push('GPRINT:%s_avg:LAST:Last\\: %s\\l'.format(source.sname, numfmt));
 		}
 
 		/*
@@ -532,9 +533,9 @@ return baseclass.extend({
 		 */
 
 		/* find data types */
-		const data_types = dtype ? [ dtype ] : (opts.data.types || []);
+		const data_types = opts.data.types || [];
 
-		if (!(dtype || opts.data.types)) {
+		if (!(opts.data.types)) {
 			if (L.isObject(opts.data.instances))
 				data_types.push.apply(data_types, Object.keys(opts.data.instances));
 			else if (L.isObject(opts.data.sources))
@@ -608,9 +609,12 @@ return baseclass.extend({
 						weight: dopts.weight || (dopts.negweight ? -+di : null) || (dopts.posweight ? +di : null) || null,
 						ds: ds,
 						type: dt,
+						type_orig: dopts?.type_orig,
 						instance: di,
 						index: _sources.length + 1,
-						sname: String(_sources.length + 1) + dt
+						/* limitation of rrdtool of old version: must be DEF_NAM_FMT aka "%29[_A-Za-z0-9]" minus suffixes later like _avg_raw
+							index prefix is used to distinguish same named data types within differnt files in case of multi-DEF merging*/
+						sname: String(_sources.length + 1) + dt.substring(0, 19).replaceAll(/-/g, '_')
 					};
 
 					_sources.push(source);
@@ -685,7 +689,7 @@ return baseclass.extend({
 				/* fixup properties for per instance mode... */
 				if (opts.per_instance) {
 					src.instance = inst;
-					src.rrd      = this.mkrrdpath(host, plugin, plugin_instance, src.type, inst);
+					src.rrd      = this.mkrrdpath(host, plugin, plugin_instance, src.type_orig ?? src.type, inst);
 				}
 
 				__def(src);
@@ -716,40 +720,35 @@ return baseclass.extend({
 		return defs;
 	},
 
-	render(plugin, plugin_instance, is_index, hostname, timespan, width, height, cache) {
+	render: async function(plugin, plugin_instance, is_index, hostname, timespan, width, height, cache) {
 		const pngs = [];
 
 		/* check for a whole graph handler */
 		const def = graphdefs[plugin];
 
-		if (def && typeof(def.rrdargs) == 'function') {
-			/* temporary image matrix */
-			const _images = [];
-
-			/* get diagram definitions */
-			const optlist = this._forcelol(def.rrdargs(this, hostname, plugin, plugin_instance, null, is_index));
-			for (let i = 0; i < optlist.length; i++) {
-				const opt = optlist[i];
-				if (!is_index || !opt.detail) {
-					_images[i] = [];
-
-					/* get diagram definition instances */
-					const diagrams = this._generic(opt, hostname, plugin, plugin_instance, null, i);
-
-					/* render all diagrams */
-					for (let j = 0; j < diagrams.length; j++) {
-						/* exec */
-						_images[i][j] = this._rrdtool(diagrams[j], null, timespan, width, height, cache);
-					}
-				}
-			}
-
-			/* remember images - XXX: fixme (will cause probs with asymmetric data) */
-			for (let y = 0; y < _images[0].length; y++)
-				for (let x = 0; x < _images.length; x++)
-					pngs.push(_images[x][y]);
+		if (!def || typeof(def.rrdargs) != 'function') {
+			return pngs;
 		}
+		
+		
+		/* get diagram definitions */
+		const optlist = await this._forcelol(def.rrdargs(this, hostname, plugin, plugin_instance, null));
+		const imageMatrix = await Promise.all(optlist.map(async (opt) => {
+			if (is_index && opt.detail) {
+				return null;
+			}
+			const diagrams = this._generic(opt, hostname, plugin, plugin_instance);
+			const images = await Promise.all(diagrams.map(diagram =>
+				this._rrdtool(diagram, null, timespan, width, height, cache)));
+			return images;
+		}));
 
-		return Promise.all(pngs);
+		if (imageMatrix.length > 0) {	
+			/* remember images - XXX: fixme (will cause probs with asymmetric data) */
+			for (let y = 0; y < imageMatrix[0]?.length; y++)
+				for (let x = 0; x < imageMatrix.length; x++)
+					if (imageMatrix[x]) pngs.push(imageMatrix[x][y]);
+		}
+		return pngs;
 	}
 });

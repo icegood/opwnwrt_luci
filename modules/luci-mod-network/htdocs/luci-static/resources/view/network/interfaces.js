@@ -787,7 +787,14 @@ return view.extend({
 								return form.Value.prototype.validate.apply(this, [ section_id, value ]);
 							};
 						}
-					}
+						
+						if (L.hasSystemFeature('odhcpd', 'dhcpv4')) {
+							so = ss.taboption('ipv4', form.DynamicList, 'dnsv4', _('Announced IPv4 DNS servers'),
+								_('Specifies a fixed list of IPv4 DNS server addresses to announce via DHCPv4. If left unspecified, the device will announce itself as IPv4 DNS server unless the <em>Local IPv4 DNS server</em> option is disabled.'));
+							so.optional = true;
+							so.datatype = 'ip4addr("nomask")';
+						};
+					};
 
 
 					const has_other_master = uci.sections('dhcp', 'dhcp').filter(function(s) {
@@ -1102,7 +1109,6 @@ return view.extend({
 					so.placeholder = '62';
 					so.datatype = 'range(1,64)';
 					so.depends({ dhcpv6: 'server', dhcpv6_pd: '1' });
-
 					/* This option is used by odhcpd. It can take IPv4/6 entries, although IPv4 DNS servers don't
 					always make sense in an IPv6 environment, they might in a dual stack environment. */
 					so = ss.taboption('ipv6', form.DynamicList, 'dns', _('Announce IPv4/6 DNS servers'),
@@ -1114,7 +1120,13 @@ return view.extend({
 					so.depends({ ra: 'hybrid', master: '0' });
 					so.depends('dhcpv6', 'server');
 					so.depends({ dhcpv6: 'hybrid', master: '0' });
-
+					
+					if (L.hasSystemFeature('odhcpd', 'dhcpv6')) {
+						so = ss.taboption('ipv6', form.DynamicList, 'dnsv6', _('Announced IPv6 DNS servers'),
+						_('Specifies a fixed list of IPv6 DNS server addresses to announce via DHCPv6. If left unspecified, the device will announce itself as IPv6 DNS server unless the <em>Local IPv6 DNS server</em> option is disabled.'));
+						so.optional = true;
+						so.datatype = 'ip6addr("nomask")';
+					}
 					so = ss.taboption('ipv6', form.Flag, 'dns_service', _('Local IPv6 DNS server'),
 						_('Announce this device as IPv6 DNS server.'));
 					so.default = so.enabled;
