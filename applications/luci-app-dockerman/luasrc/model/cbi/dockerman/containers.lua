@@ -77,7 +77,13 @@ function get_containers()
 
 		for ii,iv in ipairs(images) do
 			if iv.Id == v.ImageID then
-				data[index]["_image"] = iv.RepoTags and iv.RepoTags[1] or (iv.RepoDigests[1]:gsub("(.-)@.+", "%1") .. ":<none>")
+				if iv.RepoTags and iv.RepoTags[1] then
+					data[index]["_image"] = iv.RepoTags[1]
+				elseif iv.RepoDigests and iv.RepoDigests[1] then
+					data[index]["_image"] = iv.RepoDigests[1]:gsub("(.-)@.+", "%1") .. ":<none>"
+				else
+					data[index]["_image"] = "<none>"
+				end
 			end
 		end
 
