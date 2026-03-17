@@ -42,22 +42,23 @@ const load_plugin_schema = [
 function parse_units(ustr) {
 	// unit map
 	const map = {
-		y  : 60 * 60 * 24 * 366,
-		mon  : 60 * 60 * 24 * 31,
-		w  : 60 * 60 * 24 * 7,
-		d  : 60 * 60 * 24,
-		h  : 60 * 60,
-		min: 60,
-		m: 60
+		mon   : 60 * 60 * 24 * 30,
+		min   : 60,
+		y     : 60 * 60 * 24 * 366,
+		w     : 60 * 60 * 24 * 7,
+		d     : 60 * 60 * 24,
+		h     : 60 * 60,
+		m     : 60
 	};
 
 	let spec = match(lc(ustr), /^([0-9.]+)([a-z]*)$/);
-	
+
 	if (!spec)
 		return int(ustr);  // fallback: treat as plain number
 
 	let num = +spec[1];
-	let mul = map[spec[2]] ?? map[substr(spec[2], 0, 1)] ?? 1;
+	let unit = spec[2];
+	let mul = map[unit] ?? map[substr(unit, 0, 3)] ?? map[substr(unit, 0, 1)] ?? 1;
 
 	return int(num * mul);
 }

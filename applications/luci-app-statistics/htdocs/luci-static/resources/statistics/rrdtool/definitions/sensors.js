@@ -4,115 +4,61 @@
 'require baseclass';
 
 return baseclass.extend({
-	title: _('Sensors'),
+    title: _('Sensors'),
 
-	rrdargs(graph, host, plugin, plugin_instance, dtype) {
-		const rv = [];
-		const types = graph.dataTypes(host, plugin, plugin_instance);
+    rrdargs(graph, host, plugin, plugin_instance, dtype) {
+        const rv = [];
+        const types = graph.dataTypes(host, plugin, plugin_instance);
 
-		if (types.indexOf('temperature') > -1) {
-			rv.push({
-				per_instance: true,
-				title: "%H: %pi - %di",
-				vlabel: "\xb0C",
-				number_format: "%4.1lf\xb0C",
-				data: {
-					types: [ "temperature" ],
-					options: {
-						temperature__value: {
-							color: "ff0000",
-							title: "Temperature"
-						}
-					}
-				}
-			});
-		}
-		if (types.indexOf('humidity') > -1) {
-			rv.push({
-				per_instance: true,
-				title: "%H: %pi - %di",
-				vlabel: "%RH",
-				number_format: "%4.1lf %%RH",
-				data: {
-					types: [ "humidity" ],
-					options: {
-						humidity__value: {
-							color: "0000ff",
-							title: "Humidity"
-						}
-					}
-				}
-			});
-		}
-		if (types.indexOf('voltage') > -1) {
-			rv.push({
-				per_instance: true,
-				title: "%H: %pi - %di",
-				vlabel: "V",
-				number_format: "%4.1lf V",
-				data: {
-					types: [ "voltage" ],
-					options: {
-						voltage__value: {
-							color: "0000ff",
-							title: "Voltage"
-						}
-					}
-				}
-			});
-		}
-		if (types.indexOf('current') > -1) {
-			rv.push({
-				per_instance: true,
-				title: "%H: %pi - %di",
-				vlabel: "A",
-				number_format: "%4.1lf A",
-				data: {
-					types: [ "current" ],
-					options: {
-						current__value: {
-							color: "00ff00",
-							title: "Current"
-						}
-					}
-				}
-			});
-		}
-		if (types.indexOf('power') > -1) {
-			rv.push({
-				per_instance: true,
-				title: "%H: %pi - %di",
-				vlabel: "W",
-				number_format: "%4.1lf W",
-				data: {
-					types: [ "power" ],
-					options: {
-						power__value: {
-							color: "ff0000",
-							title: "Power"
-						}
-					}
-				}
-			});
-		}
-		if (types.indexOf('fanspeed') > -1) {
-			rv.push({
-				per_instance: true,
-				title: "%H: %pi - %di",
-				vlabel: "rpm",
-				number_format: "%4lf rpm",
-				data: {
-					types: [ "fanspeed" ],
-					options: {
-						fanspeed__value: {
-							color: "0000ff",
-							title: "Fan speed"
-						}
-					}
-				}
-			});
-		}
+        const palette = [
+            'ff0000', 'f58231', 'ffe119', '3cb44b',
+            '46f0f0', '0082c8', '911eb4', 'aa6e28'
+        ];
 
-		return rv;
-	}
+        const typeConfig = {
+            temperature: { vlabel: '\xb0C', numfmt: '%4.1lf\xb0C' },
+            humidity:    { vlabel: '%RH',   numfmt: '%4.1lf %%RH' },
+            voltage:     { vlabel: 'V',     numfmt: '%4.2lf V'    },
+            current:     { vlabel: 'A',     numfmt: '%4.1lf A'    },
+            power:       { vlabel: 'W',     numfmt: '%4.1lf W'    },
+            fanspeed:    { vlabel: 'rpm',   numfmt: '%4.0lf rpm'  },
+            pwm:         { vlabel: '%',     numfmt: '%4.1lf %%'   },
+        };
+
+        for (const [ dtype, cfg ] of Object.entries(typeConfig)) {
+            if (types.indexOf(dtype) === -1)
+                continue;
+
+            const instances = graph.dataInstances(host, plugin, plugin_instance, dtype);
+            const options = {};
+
+            instances.forEach(function(di, idx) {
+                /* unique key per instance: dtype_<sanitised_di>_value */
+                const key = dtype + '_' + di.replace(/\W/g, '_') + '_value';
+                options[key] = {
+                    rrd:     graph.mkrrdpath(host, plugin, plugin_instance, dtype, di),
+                    color:   palette[idx % palette.length],
+                    title:   di || dtype,
+                    noarea:  true,
+                    overlay: true,
+                };
+            });
+
+            rv.push({
+                title: '%H: %pi - ' + dtype,
+                vlabel: cfg.vlabel,
+                number_format: cfg.numfmt,
+                detail: true,
+                data: {
+                    types:     [ dtype ],
+                    instances: { [dtype]: instances },
+                    options
+                },
+            });
+        }
+
+        return rv;
+    },
+
+    hasInstanceDetails: true
 });

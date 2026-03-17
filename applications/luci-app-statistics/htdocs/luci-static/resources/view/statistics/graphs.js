@@ -127,8 +127,13 @@ return view.extend({
 		const width = Math.max(200, container.offsetWidth - 100);
 		const render_instances = activeInstance.split(/\|/);
 
+		if (!div)
+			return Promise.resolve();
+
+		const is_index = div.hasAttribute('data-is-index');
+
 		return Promise.all(render_instances.map(function(render_instance) {
-			return rrdtool.render(activePlugin, render_instance || '', div.hasAttribute('data-is-index'), host.value, span.value, width);
+			return rrdtool.render(activePlugin, render_instance || '', is_index, host.value, span.value, width);
 		})).then(function(blobs) {
 			return Array.prototype.concat.apply([], blobs);
 		}).then(function(blobs) {
@@ -139,6 +144,9 @@ return view.extend({
 					img.onerror = function(ev) { resolveFn(img) };
 				});
 			})).then(function(imgs) {
+				if (!div.isConnected)
+					return;
+
 				while (div.childNodes.length > imgs.length)
 					div.removeChild(div.lastElementChild);
 

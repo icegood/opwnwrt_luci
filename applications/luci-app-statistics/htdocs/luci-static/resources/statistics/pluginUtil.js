@@ -8,18 +8,20 @@
  * Shared utilities for statistics plugin form generation
  */
 return baseclass.extend({
+	validateDate(section_id, value) {
+		if (value == '')
+			return true;
+		if (value.match(/^[0-9]+(?:y|m|w|d|h|min|years?|months?|weeks?|days?|hours?)?$/))
+			return true;
+		return _('Expecting valid time range');
+	},
+
 	fillIntervalOption: function(o) {
 			o.default = uci.get("luci_statistics", "collectd", "Interval");
 			o.rmempty = true;
 			o.optional = true;
 			o.placeholder = '<number>y/mon/w/d/h/min/m/s';
-			o.validate = function(section_id, value) {
-				if (value == '')
-					return true;
-				if (value.match(/^[0-9]+(?:y|m|w|d|h|min|years?|months?|weeks?|days?|hours?)?$/))
-					return true;
-				return _('Expecting valid time range');
-			};
+			o.validate = this.validateDate;
 			o.depends('enable', '1');
 	},
 	/**

@@ -9,6 +9,29 @@ return baseclass.extend({
 
 	addFormOptions(s) {
 		let o;
+		let cacheTimeout, cacheFlush;
+
+		const syncCacheFlush = function(section_id, value) {
+			const flushUi = cacheFlush.getUIElement(section_id);
+			const flushInput = this.map.findElement('id', 'widget.%s'.format(cacheFlush.cbid(section_id)));
+			const timeoutValue = value ?? cacheTimeout.formvalue(section_id) ?? cacheTimeout.cfgvalue(section_id);
+			const timeoutNum = parseInt(timeoutValue, 10);
+			const enabled = !isNaN(timeoutNum) && timeoutNum > 0;
+
+			if (!flushUi || !flushInput)
+				return;
+
+			if (enabled) {
+				flushUi.setPlaceholder(String(timeoutNum * 10));
+				flushUi.setValue(String(timeoutNum * 10));
+				flushInput.disabled = false;
+			}
+			else {
+				flushUi.setValue('');
+				flushUi.setPlaceholder('0');
+				flushInput.disabled = true;
+			}
+		};
 
 		pluginUtil.addCommonOptions(s, true);
 
@@ -50,15 +73,7 @@ return baseclass.extend({
 			_('List of time spans to be stored in RRD database. E.g. "1hour 1day 14day". Allowed timespan types: min, h, hour(s), d, day(s), w, week(s), m, month(s), y, year(s)'));
 		o.default = '1hour 1day 1week 1month 1year';
 		o.depends('enable', '1');
-		o.validate = function(section_id, value) {
-			if (value == '')
-				return true;
-
-			if (value.match(/^[0-9]+(?:y|m|w|d|h|min|years?|months?|weeks?|days?|hours?)?$/))
-				return true;
-
-			return _('Expecting valid time range');
-		};
+		o.validate = pluginUtil.validateDate;
 
 		o = s.option(form.Value, 'RRARows', _('Rows per RRA'));
 		o.default = '288';
@@ -79,26 +94,16 @@ return baseclass.extend({
 		};
 
 		o = s.option(form.Value, 'CacheTimeout', _('Cache collected data for'), _('Seconds'));
+		cacheTimeout = o;
 		o.depends('enable', '1');
 		o.datatype = 'uinteger';
 		o.placeholder = '0';
-		o.validate = function(section_id, value) {
-			const flushinp = this.map.findElement('id', 'widget.cbid.luci_statistics.collectd_rrdtool.CacheFlush');
-
-			if (value != '' && !isNaN(value) && +value > 0) {
-				flushinp.placeholder = 10 * +value;
-				flushinp.disabled = false;
-			}
-			else {
-				flushinp.value = '';
-				flushinp.placeholder = '0';
-				flushinp.disabled = true;
-			}
-
-			return true;
+		o.onchange = function(ev, section_id, value) {
+			syncCacheFlush.call(this, section_id, value);
 		};
 
 		o = s.option(form.Value, 'CacheFlush', _('Flush cache after'), _('Seconds'));
+		cacheFlush = o;
 		o.depends('enable', '1');
 		o.datatype = 'uinteger';
 	},

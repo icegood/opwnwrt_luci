@@ -13,13 +13,7 @@ LUCI_DEPENDS:= \
 	+luci-base \
 	+collectd \
 	+rrdtool1 \
-	+collectd-mod-rrdtool \
-	+collectd-mod-iwinfo \
-	+collectd-mod-cpu \
-	+collectd-mod-memory \
-	+collectd-mod-interface \
-	+collectd-mod-load \
-	+collectd-mod-network
+	+collectd-mod-rrdtool
 
 LUCI_URL=$(ICE_GIT)/luci
 PKG_MAINTAINER:=Jo-Philipp Wich <jo@mein.io>

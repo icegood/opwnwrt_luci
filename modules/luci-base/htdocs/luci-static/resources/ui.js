@@ -2434,6 +2434,13 @@ const UIDynamicList = UIElement.extend(/** @lends LuCI.ui.DynamicList.prototype 
 			this.addItem(dl, this.values[i], label);
 		}
 
+		if (!this.options.allowduplicates) {
+			dl.querySelectorAll('.cbi-dropdown ul > li').forEach(li => {
+				if (this.values.includes(li.getAttribute('data-value')))
+					li.setAttribute('unselectable', '');
+			});
+		}
+
 		this.initDragAndDrop(dl);
 
 		return this.bind(dl);

@@ -257,17 +257,7 @@ return baseclass.extend({
 	},
 
 	pluginInstances(hostInstance, pluginName) {
-		return Object.keys((rrdtree[hostInstance] || {})[pluginName] || {}).sort(function(a, b) {
-			const x = a.match(/^(\d+)\b/);
-			const y = b.match(/^(\d+)\b/);
-
-			if (!x != !y)
-				return !x - !y;
-			else if (x && y && x[0] != y[0])
-				return +x[0] - +y[0];
-			else
-				return a > b;
-		});
+		return Object.keys((rrdtree[hostInstance] || {})[pluginName] || {}).sort();
 	},
 
 	dataTypes(hostInstance, pluginName, pluginInstance) {
@@ -597,7 +587,7 @@ return baseclass.extend({
 
 					/* store values */
 					const source = {
-						rrd: dopts.rrd || this.mkrrdpath(host, plugin, plugin_instance, dt, di),
+						rrd: dopts.rrd || this.mkrrdpath(host, plugin, plugin_instance, dopts?.type_orig ?? dt, di),
 						color: dopts.color || colors.asString(colors.random()),
 						flip: dopts.flip || false,
 						total: dopts.total || false,

@@ -5,13 +5,15 @@
 'require statistics.pluginUtil as pluginUtil';
 
 var sensorTypes = [
-	/^[0-9]+(?:\.[0-9]+)?v$/,									'voltage',
-	/^(?:ain|in|vccp|vdd|vid|vin|volt|voltbatt|vrm)[0-9]*$/,	'voltage',
-	/^(?:cpu_temp|remote_temp|temp)[0-9]*$/,					'temperature',
-	/^(?:fan)[0-9]*$/,											'fanspeed',
-	/^(?:humidity)[0-9]*$/,										'humidity',
-	/^(?:curr)[0-9]*$/,											'current',
-	/^(?:power)[0-9]*$/,										'power'
+	/^\+*[0-9]+(?:\.[0-9]+)?v$/i,											'voltage',
+	/^(?:3VSB|ain|in|Vbat|vccp|vdd|vid|vin|volt|voltbatt|vrm)[0-9]*$/i,		'voltage',
+	/^(?:composite|cpu_temp|remote_temp|tctl|tccd|temp)[0-9]*$/i,			'temperature',
+	/^(?:fan)[0-9]*$/i,														'fanspeed',
+	/^(?:pwm)[0-9]*$/i,														'pwm',
+	/^(?:humidity)[0-9]*$/i,												'humidity',
+	/^(?:curr)[0-9]*$/i,													'current',
+	/^(?:power)[0-9]*$/i,													'power',
+	/^.*$/i,																'other'
 ];
 
 return baseclass.extend({ 
@@ -49,6 +51,9 @@ return baseclass.extend({
 
 		o = s.option(form.Flag, 'IgnoreSelected', _('Monitor all except specified'));
 		o.depends('enable', '1');
+		o = s.option(form.Flag, 'UseLabels', _('Use labels'));
+		o.default = false;
+		// o.disabled = true;
 	},
 
 	configSummary(section) {
