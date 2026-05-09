@@ -28,6 +28,8 @@ LUCI_DEPENDS:=\
 	+ucode-mod-html \
 	+liblucihttp-ucode
 
+LUCI_URL=$(ICE_GIT)/luci
+
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE NOTICE
 

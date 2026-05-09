@@ -14,6 +14,7 @@ PKG_MAINTAINER:=Paul Donald <newtwen+github@gmail.com> \
 		Florian Eckert <fe@dev.tdt.de>
 
 
+LUCI_URL=$(ICE_GIT)/luci
 include ../../luci.mk
 
 # call BuildPackage - OpenWrt buildroot signature
